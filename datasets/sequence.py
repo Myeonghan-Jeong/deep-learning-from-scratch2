@@ -1,9 +1,5 @@
-# coding: utf-8
-import sys
-sys.path.append('..')
-import os
 import numpy
-
+import os
 
 id_to_char = {}
 char_to_id = {}
@@ -33,13 +29,13 @@ def load_data(file_name='addition.txt', seed=1984):
         questions.append(line[:idx])
         answers.append(line[idx:-1])
 
-    # 어휘 사전 생성
+    # set voca dict
     for i in range(len(questions)):
         q, a = questions[i], answers[i]
         _update_vocab(q)
         _update_vocab(a)
 
-    # 넘파이 배열 생성
+    # set numpy array
     x = numpy.zeros((len(questions), len(questions[0])), dtype=numpy.int)
     t = numpy.zeros((len(questions), len(answers[0])), dtype=numpy.int)
 
@@ -48,15 +44,16 @@ def load_data(file_name='addition.txt', seed=1984):
     for i, sentence in enumerate(answers):
         t[i] = [char_to_id[c] for c in list(sentence)]
 
-    # 뒤섞기
+    # suffle
     indices = numpy.arange(len(x))
     if seed is not None:
         numpy.random.seed(seed)
+
     numpy.random.shuffle(indices)
     x = x[indices]
     t = t[indices]
 
-    # 검증 데이터셋으로 10% 할당
+    # remain 10% of dataset for test
     split_at = len(x) - len(x) // 10
     (x_train, x_test) = x[:split_at], x[split_at:]
     (t_train, t_test) = t[:split_at], t[split_at:]

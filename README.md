@@ -29,3 +29,17 @@
     2. `commons.zip, datasets.zip`: 각 장에 사용된 공통 파일을 압축한 파일입니다.
 
 ## What I learned
+
+- [chapter01. Review Neural Network]()
+
+  - 1.1 Review math and python
+
+  - 1.2 Inference neural network
+
+  - 1.3 Learning neural network
+
+  - 1.4 Solve problem with neural network
+
+  - 1.5 High speed calculation
+
+  - 1.6 Summary

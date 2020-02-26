@@ -30,7 +30,7 @@
 
 ## What I learned
 
-- [chapter01. Review Neural Network]()
+- [chapter01. Review Neural Network](https://github.com/Myeonghan-Jeong/deep-learning-from-scratch2/tree/master/chapter01)
 
   - 1.1 Review math and python
 

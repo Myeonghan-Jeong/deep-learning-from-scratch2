@@ -43,3 +43,15 @@
   - 1.5 High speed calculation
 
   - 1.6 Summary
+
+- [chapter02. Dispersion Representation of Natural Language and Word]()
+
+  - 2.1 What is processing of natural language
+
+  - 2.2 Thesaurus
+
+  - 2.3 Statistical-based technique
+
+  - 2.4 Improve statistical-based technique
+
+  - 2.5 Summary

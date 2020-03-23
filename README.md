@@ -44,7 +44,7 @@
 
   - 1.6 Summary
 
-- [chapter02. Dispersion Representation of Natural Language and Word]()
+- [chapter02. Dispersion Representation of Natural Language and Word](https://github.com/Myeonghan-Jeong/deep-learning-from-scratch2/tree/master/chapter02)
 
   - 2.1 What is processing of natural language
 

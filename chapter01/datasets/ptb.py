@@ -5,6 +5,7 @@ except ImportError:
 
 import numpy as np
 import pickle
+import os
 
 url_base = 'https://raw.githubusercontent.com/tomsercu/lstm/master/data/'
 key_file = {

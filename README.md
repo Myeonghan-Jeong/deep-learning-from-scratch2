@@ -55,3 +55,17 @@
   - 2.4 Improve statistical-based technique
 
   - 2.5 Summary
+
+- [chapter03. word2vec](https://github.com/Myeonghan-Jeong/deep-learning-from-scratch2/tree/master/chapter03)
+
+  - 3.1 Reasoning-based technique and neural network
+
+  - 3.2 Simple word2vec
+
+  - 3.3 Prepare learning data
+
+  - 3.4 Simulate CBOW model
+
+  - 3.5 Supplementary word2vec
+
+  - 3.6 Summary

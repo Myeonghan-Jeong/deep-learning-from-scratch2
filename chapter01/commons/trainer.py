@@ -1,5 +1,5 @@
-from commons.util import clip_grads
-from commons.np import *
+from util import clip_grads
+from np import *
 import matplotlib.pyplot as plt
 import numpy
 import time

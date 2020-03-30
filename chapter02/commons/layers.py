@@ -1,6 +1,6 @@
-from commons.functions import softmax, cross_entropy_error
-from commons.config import GPU
-from commons.np import *
+from functions import softmax, cross_entropy_error
+from config import GPU
+from np import *
 
 
 class MatMul:

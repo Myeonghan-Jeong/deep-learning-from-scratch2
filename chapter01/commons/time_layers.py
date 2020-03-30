@@ -1,6 +1,6 @@
-from commons.functions import sigmoid
-from commons.layers import *
-from commons.np import *
+from functions import sigmoid
+from layers import *
+from np import *
 
 
 class RNN:

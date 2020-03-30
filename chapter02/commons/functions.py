@@ -1,4 +1,4 @@
-from commons.np import *
+from np import *
 
 
 def sigmoid(x):

@@ -1,5 +1,5 @@
-from commons.util import to_gpu, to_cpu
-from commons.np import *
+from util import to_gpu, to_cpu
+from np import *
 import pickle
 import os
 

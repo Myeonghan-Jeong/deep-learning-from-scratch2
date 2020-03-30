@@ -303,3 +303,80 @@ print(h)
 > word2vec과 skip-gram의 경우 W<sub>in</sub>을 사용한 쪽이 더 나은 성과를 보여줍니다.
 >
 > 반면에 word2vec과 비슷한 기법인 GloVe에서는 두 가중치를 더했을 때 좋은 결과를 얻었습니다.
+
+## 3.3 학습 데이터 준비
+
+- 지금부터 word2vec 학습에 쓰일 학습 데이터를 준비하겠습니다. 이번에도 간단하게 'You say goodbye and I say hello.'라는 한 문장을 이용하겠습니다.
+
+### 3.3.1 맥락과 타깃
+
+- word2vec에서 이용하는 신경망의 입력은 '맥락'이고 그 정답 레이블은 맥락에 둘러싸인 중앙 단어, '타깃'입니다.
+
+  - 즉, 우리가 해야할 일은 신경망에 '맥락'을 입력했을 때 '타깃'이 출현할 확률을 높이는 것입니다.
+
+- 말뭉치에서 '맥락'과 '타깃'을 만드는 방법은 다음과 같이 생각할 수 있습니다.
+
+<img src="README.assets/fig 3-16.png" alt="fig 3-16" style="zoom:50%;" />
+
+- 말뭉치에서 목표로 하는 단어를 '타깃'으로, 그 주변 단어를 '맥락'으로 뽑아내고 이 작업을 말뭉치 안의 양끝 단어를 제외한 모든 단어에 대해 수행합니다.
+
+  - 이렇게 만든 '맥락'과 '타깃'에 '맥락'에서 맥락이 신경망의 입력으로, 타깃이 정답 레이블이 됩니다.
+
+  - 참고로 각 샘플 데이터에서 맥락의 수는 여러 개가 될 수 있으나 타깃은 오직 하나입니다. 그래서 맥락을 영어로 쓸 때는 s를 붙이는 것이 좋습니다.
+
+- 이어 말뭉치에서 맥락과 타깃을 만드는 함수를 구현할 텐데 우선 말뭉치 텍스트를 단어 ID로 변환해야 합니다.
+
+```python
+import commons.util import preprocess
+
+text = 'You say goodbye and I say hello.'
+corpus, word_to_id, id_to_word = preprocess(text)
+```
+
+- 다음 단어 ID 배열인 corpus에서 맥락과 타깃을 만들어내는데 구체적으로는 corpus를 입력받아 맥락과 타깃을 반환하는 함수를 만듭니다.
+
+<img src="README.assets/fig 3-17.png" alt="fig 3-17" style="zoom:50%;" />
+
+- 여기서 맥락은 2차원 배열로 0번째 차원에는 각 맥락 데이터가 저장됩니다.
+
+  - 다시 말해 `contexts[0]`는 0번째 맥락이 저장되고 `contexts[1]`에는 1번째 맥락이 저장되는 방식입니다.
+
+  - 또한 `target[0]`에 0번째 타깃이 저장되어 서로 대응합니다.
+
+- 이제 맥락과 타깃을 만드는 함수를 구현할 차례입니다. 이름은 create_contexts_target(corpus, window_size)로 자세한 내용은 다음과 같습니다.
+
+```python
+def create_contexts_target(corpus, window_size=1):  # commons.util.py
+    target = corpus[window_size:-window_size]
+    contexts = []
+
+    for idx in range(window_size, len(corpus) - window_size):
+        cs = []
+        for t in range(-window_size, window_size + 1):
+            if t == 0:
+                continue
+            cs.append(corpus[idx + t])
+        contexts.append(cs)
+
+    return np.array(contexts), np.array(target)
+```
+
+- 이 함수는 단어 ID 배열과 맥락의 윈도우 크기를 입력받아 맥락과 타깃을 numpy 다차원 배열로 반환합니다.
+
+  - 이렇게 만들어진 맥락과 타깃은 CBOW 모델에 전달하면 완료되지만 맥락과 타깃의 각 원소는 단어 ID이므로 이를 원핫 표현으로 바꾸겠습니다.
+
+### 3.3.2 원핫 표현으로 변환
+
+- 맥락과 타깃을 원핫 표현으로 바꾸는 과정은 다음과 같습니다.
+
+<img src="README.assets/fig 3-18.png" alt="fig 3-18" style="zoom:50%;" />
+
+- 이처럼 맥락과 타깃을 단어 ID에서 원핫 표현으로 변환하면 됩니다. 이 때 다시 한 번 각 다차원 배열의 형상에 주목해야 합니다.
+
+  - 잘 보면, 단어 ID의 형상에 비해 차원이 하나 더 늘어남을 알 수 있습니다.
+
+- 이 과정을 프로그래밍하면 convert_one_hot() 함수를 만들면 됩니다. 이 함수는 단어 ID 목록과 어휘 수를 받습니다.
+
+> 자세한 내용은 chapter03/commons/util.py의 convert_one_hot 함수를 확인하세요.
+
+- 이제 이를 기반으로 CBOW 모델을 구현하겠습니다.

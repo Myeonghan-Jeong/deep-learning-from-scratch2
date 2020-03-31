@@ -1,4 +1,4 @@
-from np import *
+from .np import *
 
 
 class SGD:

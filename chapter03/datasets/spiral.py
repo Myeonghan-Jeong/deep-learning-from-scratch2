@@ -13,8 +13,8 @@ def load_data(seed=1984):
     for j in range(CLS_NUM):
         for i in range(N):  # N * j, N * (j + 1)):
             rate = i / N
-            radius = 1.0*rate
-            theta = j*4.0 + 4.0*rate + np.random.randn()*0.2
+            radius = 1.0 * rate
+            theta = j * 4.0 + 4.0 * rate + np.random.randn() * 0.2
 
             ix = N * j + i
             x[ix] = np.array(

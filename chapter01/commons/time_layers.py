@@ -1,6 +1,6 @@
-from functions import sigmoid
-from layers import *
-from np import *
+from .functions import sigmoid
+from .layers import *
+from .np import *
 
 
 class RNN:

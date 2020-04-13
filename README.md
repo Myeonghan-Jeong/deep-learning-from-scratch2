@@ -69,3 +69,15 @@
   - 3.5 Supplementary word2vec
 
   - 3.6 Summary
+
+- [chapter04. Speed Improvement of word2vec](https://github.com/Myeonghan-Jeong/deep-learning-from-scratch2/tree/master/chapter04)
+
+  - 4.1 Improvement of word2vec part 1
+
+  - 4.2 Improvement of word2vec part 2
+
+  - 4.3 Learning of improved word2vec
+
+  - 4.4 Left subject of word2vec
+
+  - 4.5 Summary

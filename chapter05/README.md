@@ -766,3 +766,207 @@ class TimeRNN:
 - 지금까지 Time 계층들에 관해 알아봤습니다.
 
 > 실제 구현에 관심이 있다면 chapter05/commons/time_layers.py를 확인하세요.
+
+## 5.5 RNNLM 학습과 평가
+
+- RNNLM 구현에 필요한 계층은 모두 설명했습니다. 그럼 이제 RNNLM을 구현하고 실제로 학습 시켜본 뒤 그 성능을 평가하겠습니다.
+
+### 5.5.1 RNNLM 구현
+
+- RNNLM에서 사용하는 신경망을 SimpleRnnlm이라는 클래스로 구현하겠습니다. 그 구성은 다음과 같습니다.
+
+<img src="README.assets/fig 5-30.png" alt="fig 5-30" style="zoom:50%;" />
+
+- 이와 같이 SimpleRnnlm 클래스는 4개의 Time 계층을 쌓은 신경망입니다. 이제 초기화 코드부터 살펴보겠습니다.
+
+```python
+class SimpleRnnlm:
+    def __init__(self, vocab_size, wordvec_size, hidden_size):
+        V, D, H = vocab_size, wordvec_size, hidden_size
+        rn = np.random.randn
+
+        # init weights
+        embed_W = (rn(V, D) / 100).astype('f')
+        rnn_Wx = (rn(D, H) / np.sqrt(D)).astype('f')
+        rnn_Wh = (rn(H, H) / np.sqrt(H)).astype('f')
+        rnn_b = np.zeros(H).astype('f')
+        affine_W = (rn(H, V) / np.sqrt(H)).astype('f')
+        affine_b = np.zeros(V).astype('f')
+
+        # init layers
+        self.layers = [
+            TimeEmbedding(embed_W),
+            TimeRNN(rnn_Wx, rnn_Wh, rnn_b, stateful=True),
+            TimeAffine(affine_W, affine_b)
+        ]
+        self.loss_layer = TimeSoftmaxWithLoss()
+        self.rnn_layer = self.layers[1]
+
+        # collect all weights and grads
+        self.params, self.grads = [], []
+        for layer in self.layers:
+            self.params += layer.params
+            self.grads += layer.grads
+```
+
+- 이 초기화 메서드는 각 계층에서 사용하는 매개변수(가중치와 편향)을 초기화하고 필요한 계층을 생성합니다.
+
+  - 또한, Truncated BPTT로 학습한다고 가정하여 Time RNN 계층의 stateful을 True로 설정하여 Time RNN 계층이 이전 시각의 은닉 상태를 계승할 수 있습니다.
+
+- 또한, 이 초기화 코드는 RNN 계층과 Affine 계층에서 'Xavier 초깃값'을 이용했습니다.
+
+  - Xavier 초깃값은 이전 계층의 노드가 n개라면 표준편차가 1 / sqrt(n)인 분포로 값들을 초기화합니다.
+
+  - 참고로 표준편차는 데이터의 차이를 직관적으로 나타내는 척도로 해석할 수 있습니다.
+
+<img src="README.assets/fig 5-31.png" alt="fig 5-31" style="zoom:50%;" />
+
+#### Warning
+
+> 딥러닝은 가중치의 초깃값이 중요한데 이는 이전 책의 '6.2 가중치의 초깃값' 절에서 자세히 설명했습니다.
+>
+> 마찬가지로 RNN에서도 가중치의 초깃값은 매우 중요해 이를 어떻게 설정하느냐에 따라 학습이 진행되는 방법과 정확도가 달라집니다.
+>
+> 이 책에서는 이후로도 가중치 초깃값으로 Xavier를 사용합니다.
+>
+> 한편, 언어 모델을 다루는 연구에서는 0.01 \* np.random.uniform(\_)처럼 스케일을 변환한 균일분포를 이용하는 사례고 있습니다.
+
+- 계속해서 forward, backward, reset_state 메서드의 구현을 살펴보겠습니다.
+
+```python
+    def forward(self, xs, ts):
+        for layer in self.layers:
+            xs = layer.forward(xs)
+        loss = self.loss_layer.forward(xs, ts)
+        return loss
+
+    def backward(self, dout=1):
+        dout = self.loss_layer.backward(dout)
+        for layer in reversed(self.layers):
+            dout = layer.backward(dout)
+        return dout
+
+    def reset_state(self):
+        self.rnn_layer.reset_state()
+```
+
+- 각 계층에서 순전파와 역전파를 적저러히 구현해뒀으므로 여기에서는 해당 계층의 forward나 backward 메서드를 적절한 순서로 호출합니다.
+
+- 마지막 reset_state는 신경망의 상태를 초기화하는 편의 메서드입니다.
+
+### 5.5.2 언어 모델의 평가
+
+- 구현된 SimpleRnnlm에 데이터를 주고 학습을 수행시키는 것만 남았는데 그에 앞서 언어 모델의 '평가 방법'에 관해 조금 이야기해보겠습니다.
+
+- 언어 모델은 주어진 과거 단어(정보)로부터 다음에 출현할 단어의 확률분포를 출력하는데 언어 모델의 예측 성능을 평가하는 척도로 **퍼플렉시티**를 사용합니다.
+
+  - 퍼플렉시티는 간단히 말해 '확률의 역수'로(이 해석은 데이터 수가 하나일 때 정확히 일치합니다.) 이를 설명하기 위해 'you say goodbye and I say hello.'라는 말뭉치를 예로 들겠습니다.
+
+    - 아래 그림의 좌측 모델에 'you'라는 단어를 넣고 확률분포를 출력할 때 정답이 'say'라면 그 확률은 0.8로 제법 괜찮은 예측입니다. 이 때 퍼플렉시티는 이의 역수인 1.25입니다.
+
+    <img src="README.assets/fig 5-32.png" alt="fig 5-32" style="zoom:50%;" />
+
+    - 반면 위 그림의 우측 모델은 'say'의 확률이 0.2로 나쁜 예측입니다. 이 때 퍼플렉시티는 5입니다.
+
+- 즉, 이를 정리하면 퍼플렉시티가 작을수록 좋은 모델임을 알 수 있습니다. 이 때 이 퍼플렉시티는 직관적으로 '분기 수'로 해석할 수 있습니다.
+
+  - 분기 수란 다음에 취할 수 있는 선택사항의 수로 구체적으로는 다음에 출현할 수 있는 후보 단어의 수를 의미합니다.
+
+  - 앞 선 예에서 좋은 모델의 '분기 수'가 1.25라는 건 다음에 출현할 단어의 후보를 1개 정도로 좁혔다는 것이고 나쁜 모델은 후보가 5개나 된다는 의미입니다.
+
+#### Note
+
+> 이처럼 퍼플렉시티로 모델의 예측 성능을 평가할 수 있습니다.
+>
+> 좋은 모델은 정답 단어를 높은 확률로 예측해 퍼플렉시티가 작지만 나쁜 모델은 확률이 낮아 퍼플렉시티가 큽니다.
+
+- 지금까지는 입력 데이터가 하나일 때의 퍼플렉시티를 이야기했는데 입력 단어가 여러 개라면 다음 공식에 따라 계산합니다.
+
+<img src="README.assets/e 5-12.png" alt="e 5-12" style="zoom:50%;" />
+
+<img src="README.assets/e 5-13.png" alt="e 5-13" style="zoom:50%;" />
+
+- 여기서 N은 데이터의 총개수, t<sub>n</sub>은 원핫 벡터로 된 정답 레이블이며, t<sub>nk</sub>는 n개째 데이터의 k번째 값을, y<sub>nk</sub>은 확률분포를 의미합니다.
+
+- 또한, L은 신경망의 손실을 뜻하는데 교차 엔트로피 오차의 식과 완전히 같은 식입니다. 이 L을 이용해 계산한 것이 퍼플렉시티입니다.
+
+- 이 식은 다소 복잡해보이지만 데이터가 하나일 때 설명한 '확률의 역수', '분기 수', '선택 사항의 수' 개념이 그대로 적용됩니다. 즉, 퍼플렉시티가 작아질수록 분기 수가 줄어 좋은 모델이 됩니다.
+
+#### Note
+
+> 정보이론 분야에서는 퍼플렉시티를 '기하평균 분기 수'라고도 합니다.
+>
+> 이는 데이터가 1개일 때 설명한 '분기 수'를 데이터가 N개인 경우에 평균한 것으로 해석할 수 있습니다.
+
+### 5.5.3 RNNLM의 학습코드
+
+- PTB 데이터셋을 이용해 RNNLM 학습을 수행하겠습니다.
+
+  - 다만, 이번 RNNLM은 PTB 데이터셋 전부를 대상으로 학습하면 좋은 결과를 낼 수 없기 때문에 처음 1000개 단어만 사용합니다.(이 문제는 다음 장에서 해결합니다.)
+
+> 자세한 내용은 5.3.1_train_custom_loop.py를 확인하세요.
+
+- 학습을 수행하는 코드는 기본적으로 지금까지 본 신경망 학습과 거의 같지만 '데이터 제공 방법'과 '퍼플렉시티 계산'부분에서 지금까지 학습 코드와 다릅니다.
+- 우선 '데이터 제공 방법'은 Truncated BPTT 방식으로 학습을 수행해야하기 때문에 데이터를 순차적으로 주고 각 미니배치에서 데이터를 읽는 시작 위치를 조정해야 합니다.
+
+  - 소스 코드의 `jump`에서 각 미니배치가 데이터를 읽기 시작하는 위치를 계산해 offsets에 저장합니다. 즉, offsets 각 원소에 데이터를 읽는 시작 위치가 담기게 됩니다.
+
+  - 이어서 소스 코드의 `batch_x`, `batch_t`에서 데이터를 순차적으로 읽습니다.
+
+    - 먼저 그릇인 변수를 준비하고 time_idx를 1씩 순차적으로 늘리면서 말뭉치에서 해당 위치의 데이터를 얻습니다.
+
+    - 여기서 앞 서 계산한 offsets를 이용해 각 미니배치에서 오프셋을 추가합니다.
+
+    - 또한, 말뭉치를 읽는 위치가 말뭉치 크기를 넘어설 경우 처음으로 돌아오기 위해 말뭉치의 크기로 나눈 나머지를 인덱스로 사용합니다.
+
+- 마지막으로 '퍼플렉시티 계산'은 소스 코드의 `ppl` 부분으로 에폭마다 퍼플렉시티를 구하기 위해 각 에폭의 손실의 평균을 구하고 그 값을 이용합니다.
+
+- 이제 학습 결과는 에폭별 퍼플렉시티 결과를 저장한 변수를 그리면 되는데 이는 다음과 같습니다.
+
+<img src="README.assets/fig 5-33.png" alt="fig 5-33" style="zoom:50%;" />
+
+- 이 결과에 따르면 학습을 진행할수록 퍼프러렉시티가 순조롭게 낮아집니다.
+
+  - 다만, 이번에는 크기가 작은 말뭉치로 실험한 것이며 현재로써는 큰 말뭉치에 대응할 수 없습니다. 이 문제는 다음 장에서 개선하겠습니다.
+
+### 5.5.4 RNNLM의 Trainer 클래스
+
+- 이 책에서는 RNNLM 학습을 수행하는 RnnlmTrainer 클래스를 제공합니다.
+
+  - 이 클래스는 방금 수행한 RNNLM 학습을 클래스 안에 숨겨 이를 불러오는 것으로 학습을 수행합니다.
+
+> 자세한 내용은 5.5.4_train.py를 확인하세요.
+
+- 이처럼 RnnlmTrainer 클래스에 model과 optimizer를 주어 초기화한 뒤 fit 메서드를 호출해 학습을 수행합니다. 이 때 내부의 수행 과정은 다음과 같습니다.
+
+  1. 미니배치를 '순차적'으로 만듭니다.
+
+  2. 모델의 순전파와 역전파를 호출합니다.
+
+  3. optimizer로 가중치를 갱신합니다.
+
+  4. 퍼플렉시티를 구합니다.
+
+#### Note
+
+> RnnlmTrainer 클래스는 '1.4.4 Trainer 클래스' 절에서 설명한 Trainer 클래스와 같은 API를 제공합니다.
+>
+> 신경망의 일반적인 학습은 Trainer 클래스를, RNNLM은 RnnlmTrainer 클래스를 사용하면 됩니다.
+
+- 이를 사용하면 똑같은 코드를 매번 작성하지 않아도 됩니다. 이 책에서는 앞으로 RNNLM 학습에 RnnlmTrainer 클래스를 사용합니다.
+
+## 5.6 정리
+
+- RNN은 순환하는 경로가 있어 이를 통해 내부에 '은닉 상태'를 기억할 수 있습니다.
+
+- RNN의 순환 경로를 펼쳐서 다수의 RNN 계층이 연결된 신경망으로 해석할 수 있으면 보통 오차역전파법(BPTT)로 학습할 수 있습니다.
+
+- 긴 시계열 데이터를 학습할 때는 데이터를 적당한 길이씩 모은 블록 단위로 BPTT 학습(Truncated BPTT)을 수행합니다.
+
+- Truncated BPTT는 역전파의 연결만 끊습니다.
+
+- Truncated BPTT는 순전파의 연결을 유지하기 위해 데이터를 '순차적'으로 입력해야 합니다.
+
+- 언어 모델은 단어 시퀀스를 확률로 해석합니다.
+
+- RNN 계층을 이용한 조건부 언어 모델은 그때까지 등장한 모든 단어의 정보를 기억할 수 있습니다.

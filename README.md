@@ -95,3 +95,17 @@
   - 5.5 Train and Evaluate RNNLM
 
   - 5.6 Summary
+
+- [chapter06. Gate Added RNN](https://github.com/Myeonghan-Jeong/deep-learning-from-scratch2/tree/master/chapter06)
+
+  - 6.1 Problems of RNN
+
+  - 6.2 Loss Gradients and LSTM
+
+  - 6.3 Simulate LSTM
+
+  - 6.4 Language Model Using LSTM
+
+  - 6.5 Further Improvement of RNNLM
+
+  - 6.6 Summary

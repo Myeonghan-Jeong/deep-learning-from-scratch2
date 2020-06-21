@@ -109,3 +109,17 @@
   - 6.5 Further Improvement of RNNLM
 
   - 6.6 Summary
+
+- [chapter07. Sentence Generating with RNN](https://github.com/Myeonghan-Jeong/deep-learning-from-scratch2/tree/master/chapter07)
+
+  - 7.1 Sentence Generating with Language Model
+
+  - 7.2 seq2seq
+
+  - 7.3 Simulate seq2seq
+
+  - 7.4 Improvement seq2seq
+
+  - 7.5 Applications using seq2seq
+
+  - 7.6 Summary
